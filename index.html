@@ -316,8 +316,13 @@ function tLeft(){
 }
 function blockMs(){ return T.base || durFor(T.mode); }
 function startTimer(){
-  if (T.base == null) T.base = tLeft();
-  T.running = true; T.endsAt = Date.now() + tLeft(); paintTimer();
+  if (T.running) return;
+  // 先取剩余时长（此时还是暂停态），再切到运行态，顺序不能反
+  var left = (T.left == null ? durFor(T.mode) : T.left);
+  if (T.base == null) T.base = left;
+  T.endsAt = Date.now() + left;
+  T.running = true;
+  paintTimer();
 }
 function pauseTimer(){ T.left = tLeft(); T.running = false; paintTimer(); }
 function resetTimer(){ T.running = false; T.base = durFor(T.mode); T.left = T.base; paintTimer(); }
@@ -747,6 +752,7 @@ function openSettings(){
         '<button class="ghost ' + (s.sound?'on':'') + '" data-act="toggle-sound">' + (s.sound?'开':'关') + '</button></div>' +
       '<div class="setting-row"><span>清空所有数据</span><button class="ghost" data-act="wipe">清空</button></div>' +
       '<p class="hint" style="margin-top:12px">快捷键：n 加一件事 · b 打开收集箱 · Esc 关闭弹窗</p>' +
+      '<p class="hint" style="margin-top:4px;opacity:.75">版本 v3 · 2026-11-09</p>' +
       '<div class="modal-actions"><button class="primary" data-act="modal-close">好</button></div>' +
     '</div></div>';
 }

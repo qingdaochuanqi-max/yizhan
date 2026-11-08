@@ -1,5 +1,5 @@
 /* 一站 · 离线缓存（v3：导航请求走网络优先，保证更新能自动到达） */
-var CACHE = 'yizhan-v3';
+var CACHE = 'yizhan-v9';
 var ASSETS = [
   './',
   './index.html',

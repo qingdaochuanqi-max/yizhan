@@ -120,6 +120,9 @@ body.calm .tabs{display:none}
 .quick-add input{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;font-size:14px;outline:none;transition:.15s}
 .quick-add input:focus{border-color:#bcdccf;box-shadow:0 0 0 3px var(--accent-soft)}
 .notice{font-size:13px;color:#8a5a2b;background:var(--warn-soft);border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.sweep{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.daystat{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.daystat .checkin-grid{gap:12px}
 .empty{color:var(--muted);font-size:14px;padding:10px 0 4px}
 
 /* ---------- timer ---------- */
@@ -164,6 +167,28 @@ td.num{text-align:center;font-variant-numeric:tabular-nums}
 .stat b{display:block;font-size:22px;font-weight:500;color:var(--accent);line-height:1.2}
 .stat span{font-size:12px;color:var(--muted)}
 
+/* ---------- 日历样式 ---------- */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-head{margin-bottom:6px}
+.cal-head span{font-size:11.5px;color:var(--muted);text-align:center}
+.cal-blank{height:46px}
+.cal-cell{height:46px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:14.5px;color:var(--ink-soft);border:1px solid transparent;background:transparent;padding:0;transition:.12s}
+.cal-cell:hover{background:rgba(0,0,0,.035)}
+.cal-cell.has{background:rgba(47,109,95,.07)}
+.cal-cell.is-today{border-color:#cfe0d9}
+.cal-cell.is-sel{background:var(--accent);color:#fff}
+.cal-cell.is-sel .cal-n{color:var(--accent);background:#fff;font-weight:600}
+.cal-d{line-height:1}
+.cal-n.empty{background:none;padding:0}
+.cal-n{font-size:10px;line-height:1;min-height:12px;padding:1px 4px;border-radius:99px;color:var(--accent);background:rgba(47,109,95,.13);font-variant-numeric:tabular-nums}
+.cal-nav{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);font-size:16px;line-height:1;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.cal-nav:hover{color:var(--accent);border-color:#c9d9d2}
+
+.wx-select{border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:13.5px;background:#fff;color:var(--ink)}
+.wchip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px;color:var(--ink-soft);background:#fff;white-space:nowrap}
+.wchip:hover{border-color:#c9d9d2;color:var(--accent)}
+.cal-cell{position:relative}
+.cal-w{position:absolute;top:1px;right:3px;font-size:9px;line-height:1;opacity:.9}
 /* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(40,35,28,.36);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;animation:fade .15s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -175,7 +200,8 @@ td.num{text-align:center;font-variant-numeric:tabular-nums}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 
 /* ---------- toast ---------- */
-#toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:#2f3b37;color:#f6f3ec;padding:11px 18px;border-radius:12px;font-size:13.5px;opacity:0;pointer-events:none;transition:.28s;z-index:60;max-width:88vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+#toast{position:fixed;left:50%;width:max-content;bottom:calc(26px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:#2f3b37;color:#f6f3ec;padding:11px 18px;border-radius:12px;font-size:13.5px;opacity:0;pointer-events:none;transition:.28s;z-index:60;max-width:88vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.toast-act{margin-left:12px;white-space:nowrap;color:#9ed8c6;text-decoration:underline;text-underline-offset:3px;font-size:13.5px;pointer-events:auto;padding:2px 4px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* ---------- calm view ---------- */
@@ -210,6 +236,11 @@ td.num{text-align:center;font-variant-numeric:tabular-nums}
   .calm-wrap{padding:22px 4px 12px}
   .timer-digits{font-variant-numeric:tabular-nums}
   .modal{max-height:92vh}
+  .cal-cell{height:42px;font-size:15px}
+  .cal-blank{height:42px}
+  .cal-grid{gap:4px}
+  .cal-n{font-size:10px}
+  .tab{padding:11px 9px;font-size:14.5px}
 }
 /* 手机安全区与安装后全屏 */
 body{padding-top:env(safe-area-inset-top);padding-bottom:calc(80px + env(safe-area-inset-bottom))}
@@ -287,7 +318,9 @@ function defaults(){
     logs: {},
     routineState: {},
     dismissed: {},
-    settings: { focus:25, break:5, sound:true }
+    calSel: null,
+    calMonth: null,
+    settings: { focus:25, break:5, sound:true, confirmDone:true, autoRoll:true }
   };
 }
 var state;
@@ -333,13 +366,15 @@ function fmtClock(ms){
 function paintTimer(){
   var digits = $('#timerDigits'); if (!digits) return;
   digits.textContent = fmtClock(tLeft());
+  var bm = blockMs();
   var bar = $('#timerBar');
-  if (bar) { bar.style.width = Math.min(100, Math.max(0, tLeft()/blockMs()*100)) + '%'; }
+  if (bar) { bar.style.width = (bm > 0 ? Math.min(100, Math.max(0, tLeft()/bm*100)) : 0) + '%'; }
   var tg = $('#timerToggle');
   if (tg) {
     if (T.running) tg.textContent = '暂停';
+    else if (tLeft() <= 0) tg.textContent = '开始';
     else if (state.calm) tg.textContent = '开始 ' + Math.max(1, Math.round(tLeft()/60000)) + ' 分钟';
-    else if (tLeft() < blockMs()) tg.textContent = '继续';
+    else if (tLeft() < bm) tg.textContent = '继续';
     else tg.textContent = '开始';
   }
   var lbl = $('#timerModeLabel');
@@ -395,6 +430,66 @@ setInterval(function(){
   paintTimer();
 }, 250);
 
+/* ================= 天气 ================= */
+var WX = [
+  { t:'晴',   e:'☀️' },
+  { t:'多云', e:'⛅' },
+  { t:'阴',   e:'☁️' },
+  { t:'小雨', e:'🌦' },
+  { t:'雨',   e:'🌧' },
+  { t:'雪',   e:'🌨' },
+  { t:'雾',   e:'🌫' },
+  { t:'风',   e:'💨' },
+  { t:'雷雨', e:'⛈' }
+];
+function wxFromCode(c){
+  if (c === 0) return WX[0];
+  if (c <= 2) return WX[1];
+  if (c === 3) return WX[2];
+  if (c === 45 || c === 48) return WX[6];
+  if (c >= 51 && c <= 57) return WX[3];
+  if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return WX[4];
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return WX[5];
+  if (c >= 95) return WX[8];
+  return WX[1];
+}
+function weatherFetch(force){
+  if (!state.settings.geo) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  var cur = (state.logs[today()] || {}).weather;
+  if (!force && cur && cur.src === 'manual') return;                       // 手动填过就尊重手动
+  if (!force && cur && cur.src === 'auto' && cur.at && (Date.now() - cur.at) < 2 * 3600 * 1000) return;
+  var g = state.settings.geo;
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + g.lat + '&longitude=' + g.lon +
+    '&timezone=auto&current=temperature_2m,weather_code' +
+    '&daily=temperature_2m_max,temperature_2m_min&forecast_days=1';
+  fetch(url).then(function(r){ return r.json(); }).then(function(d){
+    if (!d || !d.current) return;
+    var wx = wxFromCode(d.current.weather_code);
+    var lg = logFor(today());
+    lg.weather = {
+      text: wx.t, emoji: wx.e,
+      cur: d.current.temperature_2m == null ? null : Math.round(d.current.temperature_2m),
+      max: d.daily && d.daily.temperature_2m_max ? Math.round(d.daily.temperature_2m_max[0]) : null,
+      min: d.daily && d.daily.temperature_2m_min ? Math.round(d.daily.temperature_2m_min[0]) : null,
+      at: Date.now(), src: 'auto'
+    };
+    save(); render();
+  }).catch(function(){});
+}
+function weatherChip(){
+  var w = (state.logs[today()] || {}).weather;
+  if (!w) return '<button class="wchip" data-act="geo-enable" title="开启后每天自动记天气">⛅ 记天气</button>';
+  return '<button class="wchip" data-act="wx-refresh" title="刷新天气">' +
+    w.emoji + ' ' + esc(w.text) + (w.cur != null ? ' ' + w.cur + '°' : '') + '</button>';
+}
+function wxSelect(date, w){
+  var opts = '<option value="">—</option>' + WX.map(function(x){
+    return '<option value="' + x.t + '"' + (w && w.text === x.t ? ' selected' : '') + '>' + x.e + ' ' + x.t + '</option>';
+  }).join('');
+  return '<select class="wx-select" data-field="weather" data-date="' + date + '">' + opts + '</select>';
+}
+
 /* ================= 数据操作 ================= */
 function logFor(d){
   if (!state.logs[d]) state.logs[d] = {};
@@ -402,24 +497,43 @@ function logFor(d){
 }
 function todayTasks(){ return state.tasks.filter(function(t){ return t.date === today(); }); }
 function liveTasks(){ return todayTasks().filter(function(t){ return !t.done; }); }
-function addTask(title, next){
-  state.tasks.unshift({ id:uid(), title:title, next:next||'', done:false, date:today(), focus:0, createdAt:Date.now() });
+var lastOp = null;
+// 把「之前没做完」的任务接到今天；kind:'move' 用 map 记录每条任务的原始日期，撤回时逐条还原
+function autoRollover(){
+  if (!state.settings.autoRoll) return 0;
+  var stale = state.tasks.filter(function(t){ return !t.done && t.date < today(); });
+  if (!stale.length) return 0;
+  var map = {};
+  stale.forEach(function(t){ map[t.id] = t.date; t.date = today(); });
+  lastOp = { kind:'move', map: map };
+  save();
+  return stale.length;
+}
+function snapshotTasks(){ return JSON.parse(JSON.stringify(state.tasks)); }
+function addTask(title, next, date){
+  state.tasks.unshift({ id:uid(), title:title, next:next||'', done:false, date: date || today(), focus:0, createdAt:Date.now() });
 }
 function findTask(id){
   for (var i=0;i<state.tasks.length;i++){ if (state.tasks[i].id === id) return state.tasks[i]; }
   return null;
 }
-function toast(msg){
+function toast(msg, action){
   var el = $('#toast');
-  el.textContent = msg;
+  el.innerHTML = esc(msg) + (action
+    ? ' <button class="toast-act" data-act="' + action.act + '">' + esc(action.label) + '</button>'
+    : '');
   el.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(function(){ el.classList.remove('show'); }, 5200);
+  toast._t = setTimeout(function(){
+    el.classList.remove('show');
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ el.innerHTML = ''; }, 400);
+  }, action ? 8000 : 5200);
 }
 
 /* ================= 渲染 ================= */
 var TABS = [
-  ['today','今天'], ['inbox','收集箱'], ['routines','固定流程'], ['ifthen','如果…就'], ['log','记录']
+  ['today','今天'], ['calendar','日历'], ['inbox','收集箱'], ['routines','固定流程'], ['ifthen','如果…就'], ['log','记录']
 ];
 
 function render(){
@@ -434,12 +548,115 @@ function render(){
 
   var v = $('#view');
   if (state.calm) { v.innerHTML = renderCalm(); paintTimer(); return; }
-  if (state.view === 'inbox') v.innerHTML = renderInbox();
+  if (state.view === 'calendar') v.innerHTML = renderCalendar();
+  else if (state.view === 'inbox') v.innerHTML = renderInbox();
   else if (state.view === 'routines') v.innerHTML = renderRoutines();
   else if (state.view === 'ifthen') v.innerHTML = renderIfthen();
   else if (state.view === 'log') v.innerHTML = renderLog();
   else v.innerHTML = renderToday();
   paintTimer();
+}
+
+/* ---------- 日历 ---------- */
+function shiftMonth(month, n){
+  var y = +month.slice(0,4), m = +month.slice(5,7) - 1 + n;
+  return dateStr(new Date(y, m, 1)).slice(0,7);
+}
+function monthCN(month){
+  return month.slice(0,4) + ' 年 ' + Number(month.slice(5,7)) + ' 月';
+}
+function renderCalendar(){
+  var month = state.calMonth || today().slice(0,7);
+  var sel = state.calSel;
+  if (!sel || sel.slice(0,7) !== month) sel = (today().slice(0,7) === month ? today() : month + '-01');
+
+  var y = +month.slice(0,4), m = +month.slice(5,7);
+  var daysIn = new Date(y, m, 0).getDate();
+  var offset = (new Date(y, m-1, 1).getDay() + 6) % 7;   // 周一开头
+  var counts = {};
+  state.tasks.forEach(function(t){
+    if (t.done) return;
+    counts[t.date] = (counts[t.date] || 0) + 1;
+  });
+
+  var cells = [];
+  for (var b=0; b<offset; b++) cells.push('<span class="cal-blank"></span>');
+  for (var d=1; d<=daysIn; d++){
+    var ds = month + '-' + pad(d);
+    var n = counts[ds] || 0;
+    var cls = 'cal-cell';
+    if (ds === today()) cls += ' is-today';
+    if (ds === sel) cls += ' is-sel';
+    if (n) cls += ' has';
+    var dw = (state.logs[ds] || {}).weather;
+    cells.push('<button class="' + cls + '" data-act="cal-day" data-date="' + ds + '">' +
+      (dw ? '<span class="cal-w" title="' + esc(dw.text) + '">' + dw.emoji + '</span>' : '') +
+      '<span class="cal-d">' + d + '</span>' +
+      '<span class="cal-n' + (n ? '' : ' empty') + '">' + (n ? n : '') + '</span>' +
+      '</button>');
+  }
+
+  var dayTasks = state.tasks.filter(function(t){ return t.date === sel; });
+  var undone = dayTasks.filter(function(t){ return !t.done; });
+  var doneN = dayTasks.length - undone.length;
+
+  var html = '<div class="card">' +
+    '<div class="row between" style="margin-bottom:12px">' +
+      '<div class="row" style="gap:6px">' +
+        '<button class="cal-nav" data-act="cal-prev" aria-label="上个月">‹</button>' +
+        '<strong style="font-size:15px;min-width:104px;text-align:center">' + monthCN(month) + '</strong>' +
+        '<button class="cal-nav" data-act="cal-next" aria-label="下个月">›</button>' +
+      '</div>' +
+      (month === today().slice(0,7) ? '' : '<button class="mini" data-act="cal-today">回到本月</button>') +
+    '</div>' +
+    '<div class="cal-grid cal-head">' +
+      ['一','二','三','四','五','六','日'].map(function(w){ return '<span>' + w + '</span>'; }).join('') +
+    '</div>' +
+    '<div class="cal-grid">' + cells.join('') + '</div>' +
+    '<p class="hint" style="margin:10px 0 0">小数字是那天还没做的件数。点一天看当天的事。</p>' +
+  '</div>';
+
+  html += '<div class="card">' +
+    '<div class="card-head"><h2>' + fmtCN(sel) + '</h2>' +
+      '<span class="hint">' + (undone.length ? '还有 ' + undone.length + ' 件' : (doneN ? '都做完了' : '')) + '</span></div>';
+
+  if (!dayTasks.length){
+    html += '<div class="empty">这天没有安排。空着也没关系。</div>';
+  } else {
+    undone.forEach(function(t){ html += taskCard(t); });
+    if (doneN) html += '<div class="hint" style="margin-top:10px">已完成 ' + doneN + ' 件</div>';
+  }
+
+  html += '<div class="quick-add">' +
+      '<input id="calAdd" placeholder="加到 ' + (sel.slice(5,7)) + ' 月 ' + (+sel.slice(8,10)) + ' 日（按回车）">' +
+      '<button class="primary" data-act="cal-add" data-date="' + sel + '">加上</button>' +
+    '</div>';
+
+  var dl = state.logs[sel] || {};
+  html += '<div class="daystat">' +
+      '<div class="hint" style="margin-bottom:8px">那天的底子（都能改）</div>' +
+      '<div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:10px">' +
+        '<span class="field">天气 ' + wxSelect(sel, dl.weather) + '</span>' +
+        (dl.weather && dl.weather.max != null
+          ? '<span class="hint">' + (dl.weather.min != null ? dl.weather.min + '° ~ ' : '') + dl.weather.max + '°</span>'
+          : '') +
+      '</div>' +
+      '<div class="checkin-grid">' +
+        '<span class="field">睡了 <input type="number" min="0" max="14" step="0.5" data-field="sleep" data-date="' + sel + '" value="' + (dl.sleep==null?'':dl.sleep) + '"> 小时</span>' +
+        '<span class="field">精力 ' + segHtml('energy', dl.energy, false, sel) + '</span>' +
+        '<span class="field">压力 ' + segHtml('stress', dl.stress, true, sel) + '</span>' +
+      '</div>' +
+    '</div>';
+
+  html += '</div>';
+
+  if (sel !== today() && undone.length){
+    html += '<div class="row" style="justify-content:center;margin-top:2px">' +
+      '<button class="ghost" data-act="move-all-today" data-date="' + sel + '">这一天的 ' + undone.length + ' 件全部移到今天</button>' +
+    '</div>';
+  }
+
+  return html;
 }
 
 /* ---------- 今天 ---------- */
@@ -453,23 +670,25 @@ function adviceText(){
   if (stress != null && stress >= 3) return { cls:'warn', text:'有点紧。把必做压到 1–2 件，剩下的放进收集箱，它跑不掉。' };
   return { cls:'', text:'不用填得很准。填个大概，是用来决定今天放几件事的。' };
 }
+function segHtml(kind, val, hot, date){
+  var out = '<span class="seg ' + (hot?'hot':'') + '">';
+  for (var i=1;i<=5;i++){
+    out += '<button class="' + (val===i?'on':'') + '" data-act="seg" data-kind="' + kind + '" data-val="' + i + '"' +
+      (date ? ' data-date="' + date + '"' : '') + '>' + i + '</button>';
+  }
+  return out + '</span>';
+}
 function renderCheckin(){
   var l = state.logs[today()] || {};
-  var seg = function(kind, val, hot){
-    var out = '<span class="seg ' + (hot?'hot':'') + '" data-kind="' + kind + '">';
-    for (var i=1;i<=5;i++){
-      out += '<button class="' + (val===i?'on':'') + '" data-act="seg" data-kind="' + kind + '" data-val="' + i + '">' + i + '</button>';
-    }
-    return out + '</span>';
-  };
   var a = adviceText();
   var cta = (l.stress >= 4) && !state.calm && liveTasks().length > 1;
   return '<div class="card">' +
-    '<div class="card-head"><h2>今天的底子</h2><span class="hint">10 秒，不用精确</span></div>' +
+    '<div class="card-head"><h2>今天的底子</h2>' +
+      '<span class="row" style="gap:8px">' + weatherChip() + '<span class="hint">10 秒</span></span></div>' +
     '<div class="checkin-grid">' +
       '<span class="field">昨晚睡了 <input type="number" min="0" max="14" step="0.5" data-field="sleep" value="' + (l.sleep==null?'':l.sleep) + '"> 小时</span>' +
-      '<span class="field">精力 ' + seg('energy', l.energy, false) + '</span>' +
-      '<span class="field">压力 ' + seg('stress', l.stress, true) + '</span>' +
+      '<span class="field">精力 ' + segHtml('energy', l.energy, false) + '</span>' +
+      '<span class="field">压力 ' + segHtml('stress', l.stress, true) + '</span>' +
     '</div>' +
     '<div class="advice ' + a.cls + '"><span>' + esc(a.text) + '</span>' +
       (cta ? '<button class="mini" data-act="calm" style="flex-shrink:0">只留一件</button>' : '') +
@@ -477,7 +696,10 @@ function renderCheckin(){
   '</div>';
 }
 function taskCard(t){
-  var d = state.tasks;
+  var isT = (t.date === today());
+  var mainAct = isT
+    ? '<button class="mini label-full" data-act="task-focus" data-id="' + t.id + '" title="开始专注">25 分</button>'
+    : '<button class="mini label-full" data-act="task-move-today" data-id="' + t.id + '" title="移到今天">移到今天</button>';
   return '<div class="task ' + (t.done?'done':'') + '">' +
     '<button class="check" data-act="task-toggle" data-id="' + t.id + '">' + (t.done?'✓':'') + '</button>' +
     '<div class="task-main">' +
@@ -486,7 +708,7 @@ function taskCard(t){
     '</div>' +
     '<div class="task-side">' +
       (t.focus ? '<span class="tomato">🍅 ' + t.focus + '</span>' : '') +
-      '<button class="mini label-full" data-act="task-focus" data-id="' + t.id + '" title="开始专注">25 分</button>' +
+      mainAct +
       '<button class="mini danger" data-act="task-del" data-id="' + t.id + '" title="删除">✕</button>' +
     '</div>' +
   '</div>';
@@ -535,19 +757,42 @@ function renderToday(){
 
   html += timerCard();
 
-  // 晚间收尾（复用流程）
+  // 晚间收尾（复用流程）+ 一键处理剩余
   var ev = state.routines.filter(function(r){ return r.id === 'r-evening'; })[0];
   if (ev){
+    var rest = liveTasks();
     html += '<div class="card"><div class="card-head"><h2>晚间收尾</h2><span class="hint">3 分钟，不是任务</span></div>' +
-      routineBody(ev, true) + '</div>';
+      routineBody(ev, true);
+    if (rest.length){
+      html += '<div class="sweep">' +
+        '<span class="hint">还剩 ' + rest.length + ' 件没做，怎么办都行：</span>' +
+        '<span class="row" style="gap:8px;flex-wrap:wrap">' +
+          '<button class="ghost" data-act="sweep-inbox">放进收集箱</button>' +
+          '<button class="ghost" data-act="move-tomorrow">移到明天</button>' +
+        '</span>' +
+      '</div>';
+    }
+    html += '</div>';
+  }
+
+  // 明天有安排时给个入口：避免「移到明天」之后再找不到
+  var tmrD = addDays(today(), 1);
+  var tmrN = state.tasks.filter(function(t){ return !t.done && t.date === tmrD; }).length;
+  if (tmrN){
+    html += '<div class="row" style="justify-content:center;margin-top:6px">' +
+      '<button class="mini" data-act="goto-day" data-date="' + tmrD + '">明天还有 ' + tmrN + ' 件 · 去看看</button>' +
+    '</div>';
   }
 
   return html;
 }
 function timerCard(){
   var t = T.taskId ? findTask(T.taskId) : null;
-  var chips = [15,25,45].map(function(m){
-    return '<button class="chip ' + (state.settings.focus===m?'on':'') + '" data-act="setdur" data-min="' + m + '">' + m + '</button>';
+  var cleared = (T.mode === 'focus' && T.base === 0);
+  var active = cleared ? 0 : state.settings.focus;
+  var chips = [15,25,45,0].map(function(m){
+    return '<button class="chip ' + (active===m?'on':'') + '" data-act="setdur" data-min="' + m + '"' +
+      (m === 0 ? ' title="清空计时器"' : '') + '>' + m + '</button>';
   }).join('');
   return '<div class="card timer-card">' +
     '<div class="timer-head">' +
@@ -744,16 +989,33 @@ function renderLog(){
 function openSettings(){
   var s = state.settings;
   $('#modalRoot').innerHTML = '<div class="overlay" data-act="modal-close-bg">' +
-    '<div class="modal" onclick="event.stopPropagation()">' +
+    '<div class="modal">' +
       '<h3>设置</h3>' +
       '<div class="setting-row"><span>专注时长</span><input type="number" min="1" max="120" data-field="set-focus" value="' + s.focus + '"> 分钟</div>' +
       '<div class="setting-row"><span>休息时长</span><input type="number" min="1" max="60" data-field="set-break" value="' + s.break + '"> 分钟</div>' +
+      '<div class="setting-row"><span>完成前确认</span>' +
+        '<button class="ghost ' + (s.confirmDone?'on':'') + '" data-act="toggle-confirm">' + (s.confirmDone?'开':'关') + '</button></div>' +
+      '<div class="setting-row"><span>每天自动接着做</span>' +
+        '<button class="ghost ' + (s.autoRoll?'on':'') + '" data-act="toggle-autoroll">' + (s.autoRoll?'开':'关') + '</button></div>' +
       '<div class="setting-row"><span>到点提示音</span>' +
         '<button class="ghost ' + (s.sound?'on':'') + '" data-act="toggle-sound">' + (s.sound?'开':'关') + '</button></div>' +
       '<div class="setting-row"><span>清空所有数据</span><button class="ghost" data-act="wipe">清空</button></div>' +
       '<p class="hint" style="margin-top:12px">快捷键：n 加一件事 · b 打开收集箱 · Esc 关闭弹窗</p>' +
-      '<p class="hint" style="margin-top:4px;opacity:.75">版本 v3 · 2026-11-09</p>' +
+      '<p class="hint" style="margin-top:4px;opacity:.75">版本 v9 · 2026-11-09</p>' +
       '<div class="modal-actions"><button class="primary" data-act="modal-close">好</button></div>' +
+    '</div></div>';
+}
+function openConfirmDone(id){
+  var t = findTask(id);
+  if (!t) return;
+  $('#modalRoot').innerHTML = '<div class="overlay" data-act="modal-close-bg">' +
+    '<div class="modal" style="max-width:380px">' +
+      '<h3>这件做完了？</h3>' +
+      '<p style="margin:0 0 18px;font-size:15px;color:var(--ink)">' + esc(t.title) + '</p>' +
+      '<div class="modal-actions">' +
+        '<button class="ghost" data-act="modal-close">还没</button>' +
+        '<button class="primary" data-act="confirm-done" data-id="' + id + '">做完了</button>' +
+      '</div>' +
     '</div></div>';
 }
 function closeModal(){ $('#modalRoot').innerHTML = ''; }
@@ -763,8 +1025,78 @@ function handleAct(act, d, el){
   var i, t;
   switch(act){
     case 'nav': state.view = d.view; state.calm = false; commit(); break;
+    case 'cal-prev':
+    case 'cal-next':
+      var cm = state.calMonth || (state.calSel || today()).slice(0,7);
+      var nm = shiftMonth(cm, act === 'cal-next' ? 1 : -1);
+      state.calMonth = nm;
+      state.calSel = (today().slice(0,7) === nm) ? today() : nm + '-01';
+      commit(); break;
+    case 'cal-day':
+      state.calSel = d.date;
+      state.calMonth = d.date.slice(0,7);
+      commit(); break;
+    case 'cal-today':
+      state.calMonth = today().slice(0,7);
+      state.calSel = today();
+      commit(); break;
+    case 'goto-day':
+      state.view = 'calendar';
+      state.calm = false;
+      state.calSel = d.date;
+      state.calMonth = d.date.slice(0,7);
+      commit(); break;
+    case 'cal-add':
+      var ca = $('#calAdd');
+      if (!ca) break;
+      var cv = ca.value.trim();
+      if (!cv){ ca.focus(); break; }
+      addTask(cv, '', d.date);
+      commit();
+      var ca2 = $('#calAdd');
+      if (ca2) ca2.focus();
+      break;
+    case 'task-move-today':
+      var mt = findTask(d.id);
+      if (!mt) break;
+      lastOp = { kind:'move', map: (function(){ var m = {}; m[d.id] = mt.date; return m; })() };
+      mt.date = today();
+      commit();
+      toast('移到今天了。', { act:'undo', label:'撤回' });
+      break;
+    case 'move-all-today':
+      var mvList = state.tasks.filter(function(t){ return t.date === d.date && !t.done; });
+      if (!mvList.length) break;
+      lastOp = { kind:'move', map: (function(){ var m = {}; mvList.forEach(function(t){ m[t.id] = d.date; }); return m; })() };
+      mvList.forEach(function(t){ t.date = today(); });
+      commit();
+      toast('把 ' + mvList.length + ' 件移到今天了。', { act:'undo', label:'撤回' });
+      break;
     case 'calm': state.calm = !state.calm; state.view = 'today'; commit(); break;
     case 'settings': openSettings(); break;
+    case 'geo-enable':
+      if (typeof navigator === 'undefined' || !navigator.geolocation){
+        toast('这个浏览器不支持定位，可以在日历里手动选天气。'); break;
+      }
+      toast('正在获取定位…');
+      navigator.geolocation.getCurrentPosition(function(p){
+        state.settings.geo = {
+          lat: Math.round(p.coords.latitude * 1000) / 1000,
+          lon: Math.round(p.coords.longitude * 1000) / 1000
+        };
+        save();
+        weatherFetch(true);
+        render();
+        toast('好了。之后每天打开会自动记天气。');
+      }, function(){
+        toast('没拿到定位。可以在日历里手动选天气。');
+      }, { timeout: 8000, maximumAge: 3600000 });
+      break;
+    case 'wx-refresh':
+      if (!state.settings.geo){ handleAct('geo-enable', {}, null); break; }
+      toast('正在更新天气…');
+      weatherFetch(true);
+      break;
     case 'install':
       if (deferredPrompt && deferredPrompt.prompt){
         deferredPrompt.prompt();
@@ -777,8 +1109,20 @@ function handleAct(act, d, el){
     case 'modal-close': closeModal(); break;
     case 'modal-close-bg': if (el.classList.contains('overlay')) closeModal(); break;
     case 'toggle-sound': state.settings.sound = !state.settings.sound; save(); openSettings(); break;
+    case 'toggle-confirm': state.settings.confirmDone = !state.settings.confirmDone; save(); openSettings(); break;
+    case 'toggle-autoroll': state.settings.autoRoll = !state.settings.autoRoll; save(); openSettings(); break;
+    case 'confirm-done':
+      closeModal();
+      var ct = findTask(d.id);
+      if (ct && !ct.done){
+        ct.done = true;
+        var ctl = logFor(ct.date);
+        ctl.done = (ctl.done || 0) + 1;
+        save(); render();
+      }
+      break;
     case 'seg':
-      var lg = logFor(today());
+      var lg = logFor(d.date || today());
       lg[d.kind] = Number(d.val);
       save(); render(); break;
     case 'task-add':
@@ -791,6 +1135,8 @@ function handleAct(act, d, el){
       break;
     case 'task-toggle':
       t = findTask(d.id); if (!t) break;
+      // 防止误触：勾完成前先确认（压力模式下按钮本身就很大，不再打断）
+      if (!t.done && state.settings.confirmDone && !state.calm){ openConfirmDone(t.id); break; }
       t.done = !t.done;
       if (t.done){ var lgd = logFor(t.date); lgd.done = (lgd.done||0) + 1; }
       else { var lgu = logFor(t.date); lgu.done = Math.max(0, (lgu.done||0) - 1); }
@@ -809,6 +1155,7 @@ function handleAct(act, d, el){
     case 'timer-toggle':
       if (T.running) pauseTimer();
       else {
+        if (tLeft() <= 0){ toast('先选个时长（15 / 25 / 45）。'); break; }
         if (!T.taskId){ var lv2 = liveTasks(); if (lv2.length) T.taskId = lv2[0].id; }
         if (T.mode === 'focus' && T.left == null) T.left = durFor('focus');
         startTimer();
@@ -816,7 +1163,12 @@ function handleAct(act, d, el){
       break;
     case 'timer-reset': resetTimer(); break;
     case 'setdur':
-      state.settings.focus = Number(d.min);
+      var mins = Number(d.min);
+      if (mins === 0){
+        T.running = false; T.mode = 'focus'; T.base = 0; T.left = 0; T.taskId = null;
+        commit(); break;
+      }
+      state.settings.focus = mins;
       if (!T.running && T.mode === 'focus') { T.base = durFor('focus'); T.left = T.base; }
       commit(); break;
     case 'trim3':
@@ -826,6 +1178,44 @@ function handleAct(act, d, el){
         state.tasks = state.tasks.filter(function(y){ return y.id !== x.id; });
       });
       commit(); toast('超出的 ' + over.length + ' 件放进收集箱了，没有丢。'); break;
+    case 'sweep-inbox':
+      var wait = liveTasks();
+      if (!wait.length) break;
+      lastOp = { kind:'sweep', tasks: wait.slice(), inboxIds: [] };
+      wait.forEach(function(x){
+        var item = { id: uid(), text: x.title, next: x.next || '' };
+        state.inbox.push(item);
+        lastOp.inboxIds.push(item.id);
+      });
+      var waitIds = wait.map(function(x){ return x.id; });
+      state.tasks = state.tasks.filter(function(x){ return waitIds.indexOf(x.id) === -1; });
+      commit();
+      toast('已放进收集箱 · ' + wait.length + ' 件', { act:'undo', label:'撤回' });
+      break;
+    case 'move-tomorrow':
+      var restT = liveTasks();
+      if (!restT.length) break;
+      lastOp = { kind:'move', map: (function(){ var m = {}; restT.forEach(function(x){ m[x.id] = today(); }); return m; })() };
+      var tmr = addDays(today(), 1);
+      restT.forEach(function(x){ x.date = tmr; });
+      commit();
+      toast('已移到明天 · ' + restT.length + ' 件', { act:'undo', label:'撤回' });
+      break;
+    case 'undo':
+      if (!lastOp){ toast('没有可以撤回的。'); break; }
+      if (lastOp.kind === 'sweep'){
+        state.inbox = state.inbox.filter(function(x){ return lastOp.inboxIds.indexOf(x.id) === -1; });
+        lastOp.tasks.forEach(function(t){ if (!findTask(t.id)) state.tasks.push(t); });
+      } else {
+        Object.keys(lastOp.map || {}).forEach(function(id){
+          var t = findTask(id);
+          if (t) t.date = lastOp.map[id];
+        });
+      }
+      lastOp = null;
+      commit();
+      toast('撤回了，都回到原来的日期。');
+      break;
     case 'rollover':
       state.tasks.forEach(function(x){ if (!x.done && x.date < today()) x.date = today(); });
       commit(); break;
@@ -839,7 +1229,7 @@ function handleAct(act, d, el){
       toast(lines.length > 1 ? '扔进去 ' + lines.length + ' 条。' : '扔进去了。'); break;
     case 'inbox-to-task':
       var it = state.inbox.filter(function(x){ return x.id === d.id; })[0];
-      if (it){ addTask(it.text); state.inbox = state.inbox.filter(function(x){ return x.id !== d.id; }); }
+      if (it){ addTask(it.text, it.next); state.inbox = state.inbox.filter(function(x){ return x.id !== d.id; }); }
       commit(); break;
     case 'inbox-del': state.inbox = state.inbox.filter(function(x){ return x.id !== d.id; }); commit(); break;
     case 'routine-toggle':
@@ -888,7 +1278,8 @@ function handleField(field, el){
   else if (field === 'task-next'){ var t2 = findTask(el.dataset.id); if (t2) t2.next = v; save(); }
   else if (field === 'sleep'){
     var v2 = v === '' ? null : Number(v);
-    var lg = logFor(today());
+    var sdate = el.dataset.date || today();
+    var lg = logFor(sdate);
     if (v2 === null) delete lg.sleep; else lg.sleep = v2;
     save(); render();
   }
@@ -896,11 +1287,22 @@ function handleField(field, el){
   else if (field === 'ifthen-act'){ state.ifthen.forEach(function(x){ if (x.id === el.dataset.id) x.act = v; }); save(); }
   else if (field === 'set-focus'){ state.settings.focus = Math.max(1, Number(v)||25); save(); if (!T.running && T.mode==='focus') { T.base = durFor('focus'); T.left = T.base; } paintTimer(); }
   else if (field === 'set-break'){ state.settings.break = Math.max(1, Number(v)||5); save(); if (!T.running && T.mode==='break') { T.base = durFor('break'); T.left = T.base; } paintTimer(); }
+  else if (field === 'weather'){
+    var wd = el.dataset.date || today();
+    var wl = logFor(wd);
+    var pick = null;
+    for (var wi = 0; wi < WX.length; wi++){ if (WX[wi].t === v) pick = WX[wi]; }
+    if (!pick) delete wl.weather;
+    else wl.weather = { text: pick.t, emoji: pick.e, src: 'manual', at: Date.now() };
+    save(); render();
+  }
 }
 
 document.addEventListener('click', function(e){
   var el = e.target.closest('[data-act]');
   if (!el) return;
+  // 点弹窗内部不应该当成「点背景关闭」
+  if (el.dataset.act === 'modal-close-bg' && e.target !== el) return;
   handleAct(el.dataset.act, el.dataset, el);
 });
 document.addEventListener('change', function(e){
@@ -928,12 +1330,13 @@ function download(name, text, mime){
   setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1000);
 }
 function exportCSV(){
-  var head = ['日期','睡眠','精力','压力','专注分钟','完成件数'];
+  var head = ['日期','睡眠','精力','压力','专注分钟','完成件数','天气'];
   var keys = Object.keys(state.logs).sort();
   var lines = [head.join(',')];
   keys.forEach(function(k){
     var l = state.logs[k] || {};
-    lines.push([k, l.sleep==null?'':l.sleep, l.energy==null?'':l.energy, l.stress==null?'':l.stress, l.focusMin||0, l.done||0].join(','));
+    lines.push([k, l.sleep==null?'':l.sleep, l.energy==null?'':l.energy, l.stress==null?'':l.stress,
+      l.focusMin||0, l.done||0, l.weather ? l.weather.text : ''].join(','));
   });
   download('一站记录-' + today() + '.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
@@ -992,7 +1395,23 @@ function setupPWA(){
 setupPWA();
 
 /* ================= 启动 ================= */
+var rolledN = autoRollover();
 render();
+if (rolledN) toast('把 ' + rolledN + ' 件之前没做完的挪到今天了。', { act:'undo', label:'放回原处' });
+weatherFetch();
+
+/* 跨天检测：app 一直开着也能自动接过来 */
+var lastDay = today();
+function checkDayChange(){
+  var d = today();
+  if (d === lastDay) return;
+  lastDay = d;
+  var n = autoRollover();
+  render();
+  if (n) toast('新的一天，把 ' + n + ' 件没做完的挪到今天了。', { act:'undo', label:'放回原处' });
+}
+setInterval(checkDayChange, 30000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkDayChange(); });
 })();
 </script>
 </body>
